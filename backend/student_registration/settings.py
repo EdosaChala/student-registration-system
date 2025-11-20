@@ -152,3 +152,4 @@ CORS_ALLOW_HEADERS = [
 
 # WhiteNoise configuration for static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+ALLOWED_HOSTS = ['student-registration-system-production-5ef6.up.railway.app', '.railway.app', 'localhost', '127.0.0.1', '*']
