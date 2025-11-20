@@ -1,0 +1,14 @@
+.git
+.gitignore
+README.md
+.env
+*.pyc
+__pycache__
+*.sqlite3
+node_modules
+frontend/build
+.DS_Store
+.vscode
+.idea
+*.log
+.env.local

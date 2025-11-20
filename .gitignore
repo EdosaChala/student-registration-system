@@ -1,0 +1,16 @@
+# Django 
+*.log 
+*.pyc 
+__pycache__/ 
+db.sqlite3 
+media/ 
+ 
+# Node.js 
+node_modules/ 
+npm-debug.log* 
+build/ 
+ 
+# Environment 
+.env 
+.venv 
+venv/ 
