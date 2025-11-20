@@ -1,11 +1,8 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
 WORKDIR /app
 
-# Install system dependencies (simplified for SQLite)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
@@ -22,13 +19,7 @@ COPY . .
 # Create directories
 RUN mkdir -p staticfiles media
 
-# Create entrypoint script for SQLite
-RUN echo '#!/bin/bash\n\
-python manage.py migrate --noinput\n\
-python manage.py collectstatic --noinput\n\
-exec "$@"' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
-
 EXPOSE 8000
 
-ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Direct command - no entrypoint script
+CMD ["python", "backend/manage.py", "runserver", "0.0.0.0:8000"]
