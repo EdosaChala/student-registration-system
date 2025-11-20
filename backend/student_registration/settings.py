@@ -112,6 +112,7 @@ REST_FRAMEWORK = {
 
 # CORS configuration - FIXED
 CORS_ALLOWED_ORIGINS = [
+    "https://student-registration-system-production.up.railway.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
@@ -123,6 +124,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 # CSRF configuration - FIXED
 CSRF_TRUSTED_ORIGINS = [
+    "https://student-registration-system-production.up.railway.app",
+    "https://*.railway.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
