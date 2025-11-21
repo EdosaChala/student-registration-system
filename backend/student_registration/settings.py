@@ -11,7 +11,15 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-wollega-university-st
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'web']
+# FIXED: Only one ALLOWED_HOSTS definition
+ALLOWED_HOSTS = [
+    'student-registration-system-production.up.railway.app',
+    'student-registration-system-production-5ef6.up.railway.app', 
+    '.railway.app', 
+    'localhost', 
+    '127.0.0.1',
+    'prismatic-twilight-d4d485.netlify.app'
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -99,8 +107,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# REST Framework configuration - CORRECTED
-# REST Framework configuration - FIXED
+# REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -110,37 +117,37 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS configuration - FIXED
+# CORS configuration - UPDATED
 CORS_ALLOWED_ORIGINS = [
     "https://student-registration-system-production.up.railway.app",
+    "https://prismatic-twilight-d4d485.netlify.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Remove this line completely - it's the main issue:
-# CORS_ALLOW_ALL_ORIGINS = DEBUG
-
-# CSRF configuration - FIXED
+# CSRF configuration - UPDATED
 CSRF_TRUSTED_ORIGINS = [
     "https://student-registration-system-production.up.railway.app",
+    "https://prismatic-twilight-d4d485.netlify.app",
     "https://*.railway.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
 
-CSRF_COOKIE_SECURE = False
+# For production, set these to True if using HTTPS
+CSRF_COOKIE_SECURE = True  # Change to True for production
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 
-# Session configuration - FIXED
-SESSION_COOKIE_SECURE = False
+# Session configuration
+SESSION_COOKIE_SECURE = True  # Change to True for production
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
 
-# Make sure these are at the bottom of your settings
+# CORS headers configuration
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -155,4 +162,3 @@ CORS_ALLOW_HEADERS = [
 
 # WhiteNoise configuration for static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-ALLOWED_HOSTS = ['student-registration-system-production-5ef6.up.railway.app', '.railway.app', 'localhost', '127.0.0.1', '*']
