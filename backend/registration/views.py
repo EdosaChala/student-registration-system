@@ -1122,69 +1122,100 @@ class CourseSlipViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Student profile not found'}, status=404)
 
 # Course slip management endpoints
-@api_view(['POST'])
+# Course slip management endpoints
+@api_view(['GET', 'POST'])  # ← Allow both GET and POST
 @permission_classes([IsAuthenticated])
 def auto_assign_department_courses(request):
-    try:
+    if request.method == 'GET':
+        # Return information about the auto-assign feature
         current_semester = Semester.objects.filter(is_active=True).first()
-        if not current_semester:
-            return Response({'error': 'No active semester found'}, status=400)
-        
-        active_students = Student.objects.filter(is_active=True)
-        
-        created_count = 0
-        updated_count = 0
-        assignment_details = []
-        
-        for student in active_students:
-            available_courses = Course.objects.filter(
-                department=student.department,
-                year=student.year,
-                is_active=True
-            )
-            
-            if available_courses.exists():
-                course_slip, created = CourseSlip.objects.get_or_create(
-                    student=student,
-                    semester=current_semester,
-                    academic_year=current_semester.academic_year,
-                    defaults={
-                        'assigned_by': request.user,
-                        'is_approved': True
-                    }
-                )
-                
-                course_slip.courses.set(available_courses)
-                
-                assignment_details.append({
-                    'student_id': student.student_id,
-                    'student_name': f"{student.first_name} {student.last_name}",
-                    'department': student.department.name,
-                    'year': student.year,
-                    'courses_assigned': available_courses.count(),
-                    'action': 'Created' if created else 'Updated'
-                })
-                
-                if created:
-                    created_count += 1
-                else:
-                    updated_count += 1
+        active_students = Student.objects.filter(is_active=True).count()
+        departments = Department.objects.all()
         
         return Response({
-            'message': f'Automatic course assignment completed! Created: {created_count}, Updated: {updated_count}',
-            'created_count': created_count,
-            'updated_count': updated_count,
-            'total_students': active_students.count(),
-            'assignment_details': assignment_details
+            'message': 'Auto-assign department courses endpoint',
+            'current_semester': current_semester.name if current_semester else None,
+            'active_students': active_students,
+            'departments': [dept.name for dept in departments],
+            'instructions': 'Send a POST request to execute auto-assignment'
         })
-        
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
-
+    
+    elif request.method == 'POST':
+        # Your existing POST logic here
+        try:
+            current_semester = Semester.objects.filter(is_active=True).first()
+            if not current_semester:
+                return Response({'error': 'No active semester found'}, status=400)
+            
+            active_students = Student.objects.filter(is_active=True)
+            
+            created_count = 0
+            updated_count = 0
+            assignment_details = []
+            
+            for student in active_students:
+                # ... rest of your existing POST logic
+                available_courses = Course.objects.filter(
+                    department=student.department,
+                    year=student.year,
+                    is_active=True
+                )
+                
+                if available_courses.exists():
+                    course_slip, created = CourseSlip.objects.get_or_create(
+                        student=student,
+                        semester=current_semester,
+                        academic_year=current_semester.academic_year,
+                        defaults={
+                            'assigned_by': request.user,
+                            'is_approved': True
+                        }
+                    )
+                    
+                    course_slip.courses.set(available_courses)
+                    
+                    assignment_details.append({
+                        'student_id': student.student_id,
+                        'student_name': f"{student.first_name} {student.last_name}",
+                        'department': student.department.name,
+                        'year': student.year,
+                        'courses_assigned': available_courses.count(),
+                        'action': 'Created' if created else 'Updated'
+                    })
+                    
+                    if created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
+            
+            return Response({
+                'message': f'Automatic course assignment completed! Created: {created_count}, Updated: {updated_count}',
+                'created_count': created_count,
+                'updated_count': updated_count,
+                'total_students': active_students.count(),
+                'assignment_details': assignment_details
+            })
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_student_course_slip(request):
     try:
+        # Check if user has proper role
+        if not hasattr(request.user, 'userrole'):
+            return Response({
+                'error': 'User role not found. Please login again.'
+            }, status=403)
+        
+        user_role = request.user.userrole.role
+        allowed_roles = ['registrar', 'administrator', 'department_head']
+        
+        if user_role not in allowed_roles:
+            return Response({
+                'error': f'Permission denied. Only {", ".join(allowed_roles)} can assign courses.'
+            }, status=403)
+        
         student_id = request.data.get('student_id')
         semester_id = request.data.get('semester_id')
         course_ids = request.data.get('course_ids', [])
@@ -1679,3 +1710,4 @@ def debug_student_course_data(request):
         return Response({
             'error': f'Internal server error: {str(e)}'
         }, status=500)
+        

@@ -3,79 +3,55 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/RegistrarDashboard.css';
 
-// Configure axios for CSRF
+// Configure axios for CSRF - ENHANCED
 axios.defaults.xsrfCookieName = 'csrftoken';
 axios.defaults.xsrfHeaderName = 'X-CSRFToken';
 axios.defaults.withCredentials = true;
 
-// Improved CSRF token management
-const getCSRFToken = () => {
-  // Try multiple ways to get the CSRF token
-  let token = null;
-  
-  // Method 1: From cookies
-  const name = 'csrftoken';
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.substring(0, name.length + 1) === (name + '=')) {
-        token = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  
-  // Method 2: From meta tag (if your Django template has it)
-  if (!token) {
-    const metaToken = document.querySelector('meta[name="csrf-token"]');
-    if (metaToken) {
-      token = metaToken.getAttribute('content');
-    }
-  }
-  
-  console.log('🔐 CSRF Token retrieved:', token ? 'Yes' : 'No');
-  return token;
-};
-
-// Ensure CSRF token is available
+// Enhanced CSRF token management
 const ensureCSRFToken = async () => {
   try {
-    // First try to get from cookies
-    let token = getCSRFToken();
-    
-    if (!token) {
-      // If no token in cookies, fetch one from the server
-      console.log('🔄 Fetching new CSRF token from server...');
-      const response = await axios.get('http://127.0.0.1:8000/api/csrf-token/');
-      token = response.data.csrfToken;
-      console.log('✅ New CSRF token received:', token ? 'Yes' : 'No');
+    // Check if we already have a CSRF token
+    const token = getCSRFToken();
+    if (token) {
+      console.log('🔐 CSRF token already available');
+      return token;
     }
     
-    return token;
+    // Fetch new CSRF token
+    console.log('🔄 Fetching new CSRF token...');
+    const response = await axios.get('http://127.0.0.1:8000/api/csrf-token/');
+    const newToken = response.data.csrfToken;
+    console.log('✅ New CSRF token received');
+    return newToken;
   } catch (error) {
     console.error('❌ Failed to get CSRF token:', error);
-    
-    // Try alternative endpoint
-    try {
-      console.log('🔄 Trying alternative CSRF endpoint...');
-      const response = await axios.get('http://127.0.0.1:8000/api/csrf-debug/');
-      return response.data.csrfToken;
-    } catch (debugError) {
-      console.error('❌ Alternative CSRF endpoint also failed:', debugError);
-      return null;
-    }
+    throw new Error('CSRF token initialization failed');
   }
 };
 
-// Initialize CSRF - SIMPLIFIED
+const getCSRFToken = () => {
+  const name = 'csrftoken=';
+  const cookies = document.cookie.split(';');
+  for (let cookie of cookies) {
+    while (cookie.charAt(0) === ' ') {
+      cookie = cookie.substring(1);
+    }
+    if (cookie.indexOf(name) === 0) {
+      return cookie.substring(name.length, cookie.length);
+    }
+  }
+  return null;
+};
+
+// Initialize CSRF
 const initializeCSRF = async () => {
   console.log('🔄 Initializing CSRF protection...');
-  const token = await ensureCSRFToken();
-  if (token) {
+  try {
+    await ensureCSRFToken();
     console.log('✅ CSRF protection initialized');
-  } else {
-    console.warn('⚠️ CSRF token not available, requests may fail');
+  } catch (error) {
+    console.error('❌ CSRF initialization failed:', error);
   }
 };
 const RegistrarDashboard = () => {
@@ -992,8 +968,31 @@ const RegistrarDashboard = () => {
       return courseDeptId == studentDeptId;
     });
   };
-
+// Add this authentication helper function
+// SIMPLIFIED Authentication Check
+const ensureAuthenticated = async () => {
+  try {
+    // Use an existing endpoint that requires authentication to test
+    const response = await axios.get('http://127.0.0.1:8000/api/course-slips/', {
+      withCredentials: true
+    });
+    
+    // If we get a response (even if empty), we're authenticated
+    console.log('✅ Authentication confirmed');
+    return true;
+  } catch (error) {
+    if (error.response?.status === 403 || error.response?.status === 401) {
+      console.error('❌ Authentication failed:', error.response.data);
+      throw new Error('Authentication failed. Please refresh the page and login again.');
+    }
+    
+    // If it's a 404 or other error, we might still be authenticated but the endpoint doesn't exist
+    console.warn('⚠️ Endpoint not available, but proceeding with assignment...');
+    return true;
+  }
+};
  // SIMPLIFIED Individual course assignment
+// SIMPLIFIED Individual course assignment
 const assignCoursesToStudent = async () => {
   if (!selectedStudent || selectedCourses.length === 0 || !selectedSemester) {
     alert('Please select a student, semester, and at least one course.');
@@ -1002,13 +1001,21 @@ const assignCoursesToStudent = async () => {
 
   setLoading(true);
   try {
-    // Use axios directly - it handles CSRF automatically
+    // Ensure authentication
+    await ensureAuthenticated();
+
     const response = await axios.post(
       'http://127.0.0.1:8000/api/create-student-course-slip/',
       {
         student_id: selectedStudent,
         course_ids: selectedCourses,
         semester_id: selectedSemester
+      },
+      {
+        withCredentials: true,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
       }
     );
 
@@ -1025,10 +1032,10 @@ const assignCoursesToStudent = async () => {
     console.error('Error assigning courses:', error);
     
     if (error.response?.status === 403) {
-      if (error.response?.data?.detail?.includes('CSRF')) {
-        alert('❌ CSRF token validation failed. Please refresh the page and try again.');
+      if (error.response?.data?.detail?.includes('Authentication')) {
+        alert('❌ Authentication failed. Please refresh the page and login again.');
       } else {
-        alert('❌ Authentication failed. Please make sure you are logged in.');
+        alert('❌ Permission denied. Please make sure you have registrar privileges.');
       }
     } else if (error.response?.data?.error) {
       alert('❌ Error: ' + error.response.data.error);
@@ -1240,22 +1247,60 @@ const assignCoursesToStudent = async () => {
     return gradeColors[grade] || '#95a5a6';
   };
 
-  // Function to get students without course slips
-  const getStudentsWithoutCourseSlips = (semesterId = null) => {
-    return students.filter(student => {
-      const hasCourseSlip = courseSlips.some(slip => {
-        const slipStudentId = typeof slip.student === 'object' ? slip.student.id : slip.student;
-        const slipSemesterId = typeof slip.semester === 'object' ? slip.semester.id : slip.semester;
-        
-        if (semesterId) {
-          return slipStudentId == student.id && slipSemesterId == semesterId;
-        }
-        return slipStudentId == student.id;
-      });
-
-      return !hasCourseSlip;
+  // IMPROVED: Get students who don't have course slips for a specific semester
+const getStudentsWithoutCourseSlips = (semesterId = null) => {
+  if (!semesterId) return [];
+  
+  return students.filter(student => {
+    // Check if student has ANY course slip for the given semester
+    const hasCourseSlip = courseSlips.some(slip => {
+      // Handle different data structures for student ID
+      let slipStudentId;
+      if (typeof slip.student === 'object') {
+        slipStudentId = slip.student?.id;
+      } else if (typeof slip.student === 'number') {
+        slipStudentId = slip.student;
+      } else {
+        slipStudentId = slip.student_id || slip.student;
+      }
+      
+      // Handle different data structures for semester ID
+      let slipSemesterId;
+      if (typeof slip.semester === 'object') {
+        slipSemesterId = slip.semester?.id;
+      } else if (typeof slip.semester === 'number') {
+        slipSemesterId = slip.semester;
+      } else {
+        slipSemesterId = slip.semester_id || slip.semester;
+      }
+      
+      // Match student and semester
+      const studentMatch = slipStudentId == student.id;
+      const semesterMatch = slipSemesterId == semesterId;
+      
+      return studentMatch && semesterMatch;
     });
-  };
+    
+    return !hasCourseSlip;
+  });
+};
+
+// Add this function to filter students by department in auto-assignment
+const getFilteredStudentsForAutoAssignment = (semesterId, departmentFilter = '') => {
+  let studentsWithoutSlips = getStudentsWithoutCourseSlips(semesterId);
+  
+  // Apply department filter if provided
+  if (departmentFilter) {
+    studentsWithoutSlips = studentsWithoutSlips.filter(student => {
+      const studentDeptId = typeof student.department === 'object' 
+        ? student.department.id 
+        : student.department;
+      return studentDeptId == departmentFilter;
+    });
+  }
+  
+  return studentsWithoutSlips;
+};
 
   // SMART COURSE SELECTION LOGIC
   const getAppropriateCoursesForStudent = (student) => {
@@ -1290,21 +1335,67 @@ const assignCoursesToStudent = async () => {
     return departmentCourses.slice(0, 6);
   };
 
- const applyAutoAssignment = async () => {
+ /// Use existing endpoints that we know work
+// Add this function to your RegistrarDashboard component
+const checkLoginStatus = async () => {
+  try {
+    // Try to access an endpoint that exists and requires authentication
+    const response = await axios.get('http://127.0.0.1:8000/api/course-slips/');
+    console.log('✅ User is authenticated and can access protected endpoints');
+    return true;
+  } catch (error) {
+    console.error('❌ Authentication check failed:', error.response?.status);
+    
+    if (error.response?.status === 403 || error.response?.status === 401) {
+      alert('🔐 Please login first to access registrar features.');
+      return false;
+    } else if (error.response?.status === 404) {
+      // Endpoint doesn't exist, but we might still be authenticated
+      console.log('⚠️ Endpoint not found, but proceeding...');
+      return true;
+    }
+    
+    // For other errors, assume we're not authenticated
+    alert('❌ Authentication failed. Please login again.');
+    return false;
+  }
+};
+const applyAutoAssignment = async () => {
+  // STEP 1: Check authentication AND ensure CSRF token
+  console.log('🔐 Checking authentication and CSRF status...');
+  
+  try {
+    // Ensure CSRF token is available for POST requests
+    await ensureCSRFToken();
+    
+    const isLoggedIn = await checkLoginStatus();
+    if (!isLoggedIn) {
+      alert('❌ Authentication required.');
+      return;
+    }
+  } catch (error) {
+    alert('❌ Authentication/CSRF setup failed. Please refresh the page.');
+    return;
+  }
+
+  // STEP 2: Validate semester selection
   if (!autoAssignment.selectedSemester) {
     alert('Please select a semester for auto-assignment.');
     return;
   }
 
   const studentsWithoutSlips = getStudentsWithoutCourseSlips(autoAssignment.selectedSemester);
+  
+  console.log(`🎯 Auto-assignment starting for semester: ${autoAssignment.selectedSemester}`);
+  console.log(`📊 Students without approved course slips: ${studentsWithoutSlips.length}`);
 
   if (studentsWithoutSlips.length === 0) {
-    alert('🎉 All students already have course slips for the selected semester!');
+    alert('🎉 All students already have APPROVED course slips for the selected semester!');
     return;
   }
 
   const confirmed = window.confirm(
-    `Auto-assign courses to ${studentsWithoutSlips.length} students?`
+    `Auto-assign courses to ${studentsWithoutSlips.length} students who don't have approved course slips?`
   );
   if (!confirmed) return;
 
@@ -1314,13 +1405,6 @@ const assignCoursesToStudent = async () => {
     progress: 0,
     currentStudent: ''
   }));
-
-  const token = localStorage.getItem("access_token");
-  if (!token) {
-    alert("⚠️ You are not logged in. Please login first.");
-    setAutoAssignment(prev => ({ ...prev, loading: false }));
-    return;
-  }
 
   try {
     let successCount = 0;
@@ -1332,18 +1416,24 @@ const assignCoursesToStudent = async () => {
       setAutoAssignment(prev => ({
         ...prev,
         progress: Math.round((i / studentsWithoutSlips.length) * 100),
-        currentStudent: `${student.first_name} ${student.last_name}`
+        currentStudent: `${student.first_name} ${student.last_name} (${student.student_id})`
       }));
 
       try {
         const appropriateCourses = getAppropriateCoursesForStudent(student);
 
         if (appropriateCourses.length === 0) {
-          console.log(`No appropriate courses found for ${student.student_id}`);
+          console.log(`❌ No appropriate courses found for ${student.student_id}`);
           errorCount++;
           continue;
         }
 
+        console.log(`🔄 Assigning ${appropriateCourses.length} courses to ${student.student_id}`);
+        
+        // STEP 3: Make POST request with explicit CSRF headers
+        const csrfToken = getCSRFToken();
+        console.log('🔐 Using CSRF token for POST:', csrfToken ? 'Yes' : 'No');
+        
         const response = await axios.post(
           'http://127.0.0.1:8000/api/create-student-course-slip/',
           {
@@ -1353,8 +1443,8 @@ const assignCoursesToStudent = async () => {
           },
           {
             headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              'X-CSRFToken': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest'
             }
           }
         );
@@ -1364,25 +1454,37 @@ const assignCoursesToStudent = async () => {
           console.log(`✅ Successfully assigned courses to ${student.student_id}`);
         } else {
           errorCount++;
-          console.log(`❌ Failed for ${student.student_id}:`, response.data.message);
+          console.log(`❌ API failed for ${student.student_id}:`, response.data.message);
         }
       } catch (error) {
         errorCount++;
-        console.error(`❌ Error for ${student.student_id}:`, error.response?.data || error.message);
+        const errorData = error.response?.data;
+        console.error(`❌ Error for ${student.student_id}:`, errorData);
 
-        // Stop process on CSRF or 403 issues
-        if (error.response?.status === 403) {
-          alert('⚠️ Authentication failed. Please login again.');
-          break;
+        // Enhanced error handling
+        if (i === 0) {
+          if (error.response?.status === 403) {
+            if (errorData?.detail?.includes('CSRF')) {
+              alert('🔐 CSRF token issue! Please refresh the page completely and try again.');
+              break;
+            } else if (errorData?.detail?.includes('Authentication')) {
+              alert('🔐 Session expired! Please login again and refresh the page.');
+              break;
+            } else if (errorData?.error) {
+              alert(`❌ Permission error: ${errorData.error}`);
+              break;
+            }
+          }
         }
       }
 
-      // Small delay to avoid overwhelming the server
+      // Small delay between requests
       if (i < studentsWithoutSlips.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
+    // STEP 4: Show results
     setAutoAssignment(prev => ({
       ...prev,
       progress: 100,
@@ -1393,13 +1495,18 @@ const assignCoursesToStudent = async () => {
       alert(`✅ Successfully assigned courses to ${successCount} students`);
       await fetchRegistrarData();
     }
+    
     if (errorCount > 0) {
-      alert(`❌ Failed to assign courses to ${errorCount} students. Check console for details.`);
+      if (successCount === 0) {
+        alert(`❌ All ${errorCount} assignments failed.\n\nThis is likely a CSRF or session issue. Please:\n1. Refresh the page completely\n2. Ensure you're logged in as registrar\n3. Try again`);
+      } else {
+        alert(`⚠️ Partially completed:\n✅ ${successCount} students assigned\n❌ ${errorCount} students failed`);
+      }
     }
 
   } catch (error) {
     console.error('Auto-assignment overall error:', error);
-    alert('Auto-assignment failed: ' + error.message);
+    alert('❌ Auto-assignment failed: ' + error.message);
   } finally {
     setAutoAssignment(prev => ({ 
       ...prev, 
@@ -1408,7 +1515,6 @@ const assignCoursesToStudent = async () => {
     }));
   }
 };
-
   return (
     <div className="registrar-dashboard">
       <div className="dashboard-header">
@@ -1895,99 +2001,177 @@ const assignCoursesToStudent = async () => {
         )}
 
         {/* AUTO ASSIGNMENT TAB */}
-        {activeTab === 'auto-assign' && (
-          <div className="auto-assignment-section">
-            <div className="section-header">
-              <h2>Auto-Assign Courses to Students</h2>
-              <p>Automatically assign appropriate courses to students without course slips</p>
-            </div>
+{activeTab === 'auto-assign' && (
+  <div className="auto-assignment-section">
+    <div className="section-header">
+      <h2>Auto-Assign Courses to Students</h2>
+      <p>Automatically assign appropriate courses to students without course slips for the selected semester</p>
+    </div>
 
-            <div className="auto-assignment-form">
-              <div className="form-group">
-                <label>Select Semester:</label>
-                <select 
-                  value={autoAssignment.selectedSemester} 
-                  onChange={(e) => setAutoAssignment(prev => ({...prev, selectedSemester: e.target.value}))}
-                  className="form-select"
-                >
-                  <option value="">Choose a semester</option>
-                  {semesters.map(semester => (
-                    <option key={semester.id} value={semester.id}>
-                      {semester.name} - {semester.academic_year_name || semester.academic_year?.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+    <div className="auto-assignment-form">
+      <div className="form-row">
+        <div className="form-group">
+          <label>Select Semester:</label>
+          <select 
+            value={autoAssignment.selectedSemester} 
+            onChange={(e) => setAutoAssignment(prev => ({...prev, selectedSemester: e.target.value}))}
+            className="form-select"
+          >
+            <option value="">Choose a semester</option>
+            {semesters.map(semester => (
+              <option key={semester.id} value={semester.id}>
+                {semester.name} - {semester.academic_year_name || semester.academic_year?.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-              {/* Student Preview */}
-              {autoAssignment.selectedSemester && (
-                <div className="students-preview" style={{marginTop: '25px', padding: '15px', background: '#f5f5f5', borderRadius: '8px'}}>
-                  <h4>📋 Students Who Will Receive Course Slips:</h4>
-                  <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '10px', marginTop: '10px'}}>
-                    {getStudentsWithoutCourseSlips(autoAssignment.selectedSemester).slice(0, 12).map(student => (
-                      <div key={student.id} className="student-preview-item" style={{padding: '8px', background: 'white', borderRadius: '5px', border: '1px solid #ddd'}}>
-                        <div><strong>{student.student_id}</strong></div>
-                        <div>{student.first_name} {student.last_name}</div>
-                        <div style={{fontSize: '0.9em', color: '#666'}}>
-                          {student.department_name} • Year {student.year}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  {getStudentsWithoutCourseSlips(autoAssignment.selectedSemester).length > 12 && (
-                    <div style={{textAlign: 'center', marginTop: '10px', color: '#666'}}>
-                      ... and {getStudentsWithoutCourseSlips(autoAssignment.selectedSemester).length - 12} more students
-                    </div>
-                  )}
-                  {getStudentsWithoutCourseSlips(autoAssignment.selectedSemester).length === 0 && (
-                    <div style={{textAlign: 'center', padding: '20px', color: '#666'}}>
-                      🎉 All students already have course slips for this semester!
-                    </div>
-                  )}
-                </div>
-              )}
+        {/* ADD DEPARTMENT FILTER */}
+        <div className="form-group">
+          <label>Filter by Department:</label>
+          <select 
+            value={autoAssignment.departmentFilter || ''} 
+            onChange={(e) => setAutoAssignment(prev => ({...prev, departmentFilter: e.target.value}))}
+            className="form-select"
+          >
+            <option value="">All Departments</option>
+            {getUniqueDepartments().map(dept => (
+              <option key={dept.id} value={dept.id}>
+                {dept.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-              {/* Progress Display */}
-              {autoAssignment.loading && (
-                <div className="progress-section" style={{marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px'}}>
-                  <h4>🔄 Auto-Assignment in Progress</h4>
-                  <div style={{marginBottom: '10px'}}>
-                    <strong>Progress:</strong> {autoAssignment.progress}%
-                  </div>
-                  <div style={{width: '100%', background: '#e9ecef', borderRadius: '4px', overflow: 'hidden'}}>
-                    <div 
-                      style={{
-                        width: `${autoAssignment.progress}%`,
-                        height: '20px',
-                        background: '#28a745',
-                        transition: 'width 0.3s ease'
-                      }}
-                    ></div>
-                  </div>
-                  {autoAssignment.currentStudent && (
-                    <div style={{marginTop: '10px', fontStyle: 'italic'}}>
-                      Currently processing: {autoAssignment.currentStudent}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <button 
-                onClick={applyAutoAssignment}
-                className="btn-success"
-                disabled={autoAssignment.loading || !autoAssignment.selectedSemester}
-                style={{width: '100%', padding: '12px', fontSize: '16px', marginTop: '20px'}}
-              >
-                {autoAssignment.loading ? '🔄 Auto-Assigning...' : '🤖 Start Auto-Assignment'}
-              </button>
-              
-              <small style={{display: 'block', marginTop: '10px', color: '#666', textAlign: 'center'}}>
-                The system will automatically assign appropriate courses based on student's department and year level
-              </small>
+      {/* Student Preview - NOW SHOWS ONLY STUDENTS WITHOUT COURSE SLIPS */}
+      {autoAssignment.selectedSemester && (
+        <div className="students-preview" style={{marginTop: '25px', padding: '15px', background: '#f5f5f5', borderRadius: '8px'}}>
+          <div className="preview-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px'}}>
+            <h4>📋 Students Who Will Receive Course Slips:</h4>
+            <div style={{fontSize: '14px', color: '#666'}}>
+              {getFilteredStudentsForAutoAssignment(
+                autoAssignment.selectedSemester, 
+                autoAssignment.departmentFilter
+              ).length} students found
             </div>
           </div>
-        )}
+          
+          {getFilteredStudentsForAutoAssignment(
+            autoAssignment.selectedSemester, 
+            autoAssignment.departmentFilter
+          ).length > 0 ? (
+            <>
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '10px', marginTop: '10px'}}>
+                {getFilteredStudentsForAutoAssignment(
+                  autoAssignment.selectedSemester, 
+                  autoAssignment.departmentFilter
+                ).slice(0, 12).map(student => (
+                  <div key={student.id} className="student-preview-item" style={{
+                    padding: '10px', 
+                    background: 'white', 
+                    borderRadius: '5px', 
+                    border: '1px solid #ddd',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <strong>{student.student_id}</strong>
+                      <span style={{fontSize: '0.8em', color: '#666'}}>Year {student.year}</span>
+                    </div>
+                    <div>{student.first_name} {student.last_name}</div>
+                    <div style={{fontSize: '0.9em', color: '#666'}}>
+                      {student.department_name || student.department?.name}
+                    </div>
+                    <div style={{fontSize: '0.8em', color: '#28a745', fontWeight: 'bold'}}>
+                      ✅ No course slip for {semesters.find(s => s.id == autoAssignment.selectedSemester)?.name}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {getFilteredStudentsForAutoAssignment(
+                autoAssignment.selectedSemester, 
+                autoAssignment.departmentFilter
+              ).length > 12 && (
+                <div style={{textAlign: 'center', marginTop: '10px', color: '#666'}}>
+                  ... and {getFilteredStudentsForAutoAssignment(
+                    autoAssignment.selectedSemester, 
+                    autoAssignment.departmentFilter
+                  ).length - 12} more students
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{textAlign: 'center', padding: '20px', color: '#666'}}>
+              {autoAssignment.departmentFilter ? (
+                <div>
+                  <p>🎉 All students in this department already have course slips for this semester!</p>
+                  <button 
+                    className="clear-filters-btn" 
+                    onClick={() => setAutoAssignment(prev => ({...prev, departmentFilter: ''}))}
+                    style={{marginTop: '10px'}}
+                  >
+                    Clear Department Filter to See All Students
+                  </button>
+                </div>
+              ) : (
+                <p>🎉 All students already have course slips for this semester!</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
+      {/* Progress Display */}
+      {autoAssignment.loading && (
+        <div className="progress-section" style={{marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px'}}>
+          <h4>🔄 Auto-Assignment in Progress</h4>
+          <div style={{marginBottom: '10px'}}>
+            <strong>Progress:</strong> {autoAssignment.progress}%
+          </div>
+          <div style={{width: '100%', background: '#e9ecef', borderRadius: '4px', overflow: 'hidden'}}>
+            <div 
+              style={{
+                width: `${autoAssignment.progress}%`,
+                height: '20px',
+                background: '#28a745',
+                transition: 'width 0.3s ease'
+              }}
+            ></div>
+          </div>
+          {autoAssignment.currentStudent && (
+            <div style={{marginTop: '10px', fontStyle: 'italic'}}>
+              Currently processing: {autoAssignment.currentStudent}
+            </div>
+          )}
+        </div>
+      )}
+
+      <button 
+        onClick={applyAutoAssignment}
+        className="btn-success"
+        disabled={autoAssignment.loading || !autoAssignment.selectedSemester || 
+          getFilteredStudentsForAutoAssignment(
+            autoAssignment.selectedSemester, 
+            autoAssignment.departmentFilter
+          ).length === 0}
+        style={{width: '100%', padding: '12px', fontSize: '16px', marginTop: '20px'}}
+      >
+        {autoAssignment.loading ? '🔄 Auto-Assigning...' : '🤖 Start Auto-Assignment'}
+      </button>
+      
+      <small style={{display: 'block', marginTop: '10px', color: '#666', textAlign: 'center'}}>
+        The system will automatically assign appropriate courses based on student's department and year level
+        {autoAssignment.departmentFilter && (
+          <span> • Filtered by: {
+            getUniqueDepartments().find(d => d.id == autoAssignment.departmentFilter)?.name
+          }</span>
+        )}
+      </small>
+    </div>
+  </div>
+)}
         {/* COURSE SLIPS TAB */}
         {activeTab === 'course-slips' && (
           <div className="course-slips-section">
