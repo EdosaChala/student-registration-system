@@ -3,6 +3,7 @@ import axios from 'axios';
 import '../styles/StudentRegistration.css';
 
 const StudentRegistration = () => {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8000';
   const [formData, setFormData] = useState({
     username: '', 
     password: '', 
@@ -39,8 +40,8 @@ const StudentRegistration = () => {
 
   const fetchDepartments = async () => {
     try {
-      console.log('📡 Fetching departments from: http://127.0.0.1:8000/api/departments/');
-      const response = await axios.get('http://127.0.0.1:8000/api/departments/');
+      console.log(`📡 Fetching departments from: ${API_BASE_URL}/api/departments/`);
+      const response = await axios.get(`${API_BASE_URL}/api/departments/`);
       console.log('✅ Departments response:', response.data);
       console.log('📊 Departments count:', response.data.length);
       setDepartments(response.data);
@@ -54,8 +55,8 @@ const StudentRegistration = () => {
 
   const fetchAcademicYears = async () => {
     try {
-      console.log('📡 Fetching academic years from: http://127.0.0.1:8000/api/academic-years/');
-      const response = await axios.get('http://127.0.0.1:8000/api/academic-years/');
+      console.log(`📡 Fetching academic years from: ${API_BASE_URL}/api/academic-years/`);
+      const response = await axios.get(`${API_BASE_URL}/api/academic-years/`);
       console.log('✅ Academic years response:', response.data);
       console.log('📊 Academic years count:', response.data.length);
       setAcademicYears(response.data);
@@ -68,7 +69,7 @@ const StudentRegistration = () => {
   const fetchAcademicPrograms = async (departmentId) => {
     try {
       console.log(`📡 Fetching programs for department: ${departmentId}`);
-      const response = await axios.get(`http://127.0.0.1:8000/api/academic-programs/?department_id=${departmentId}`);
+      const response = await axios.get(`${API_BASE_URL}/api/academic-programs/?department_id=${departmentId}`);
       console.log('✅ Academic programs response:', response.data);
       setAcademicPrograms(response.data);
     } catch (error) {
@@ -79,7 +80,7 @@ const StudentRegistration = () => {
   const checkRegistrationStatus = async (academicYearId) => {
     try {
       console.log(`📡 Checking registration status for academic year: ${academicYearId}`);
-      const response = await axios.get(`http://127.0.0.1:8000/api/academic-years/${academicYearId}/registration_status/`);
+      const response = await axios.get(`${API_BASE_URL}/api/academic-years/${academicYearId}/registration_status/`);
       const statusData = response.data;
       console.log('✅ Registration status:', statusData);
       setRegistrationStatus(statusData.status);
@@ -150,7 +151,7 @@ const StudentRegistration = () => {
 
     setIsProcessingPayment(true);
     try {
-      const response = await axios.post(`http://127.0.0.1:8000/api/registrations/${pendingRegistration.id}/pay_penalty/`);
+      const response = await axios.post(`${API_BASE_URL}/api/registrations/${pendingRegistration.id}/pay_penalty/`);
       
       setMessage(`✅ Penalty paid successfully! Student account created successfully.`);
       setMessageType('success');
@@ -180,7 +181,7 @@ const StudentRegistration = () => {
 const createBasicRegistration = async (studentId) => {
   try {
     // First, let's get the current active semester
-    const semestersResponse = await axios.get('http://127.0.0.1:8000/api/semesters/');
+    const semestersResponse = await axios.get(`${API_BASE_URL}/api/semesters/`);
     const activeSemester = semestersResponse.data.find(sem => sem.is_active);
     
     if (!activeSemester) {
@@ -238,7 +239,7 @@ const createBasicRegistration = async (studentId) => {
     console.log('📤 Sending registration data:', formData);
     
     // Step 1: Register student (create user account)
-    const studentResponse = await axios.post('http://127.0.0.1:8000/api/register_student/', formData);
+    const studentResponse = await axios.post(`${API_BASE_URL}/api/register_student/`, formData);
     console.log('✅ Student registration success:', studentResponse.data);
     
     // Step 2: Create basic registration record (without courses)
