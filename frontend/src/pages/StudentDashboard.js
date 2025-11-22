@@ -59,6 +59,8 @@ axios.interceptors.response.use(
 );
 
 const StudentDashboard = () => {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8000';
+
   const [student, setStudent] = useState(null);
   const [grades, setGrades] = useState([]);
   const [registrations, setRegistrations] = useState([]);
@@ -81,7 +83,7 @@ const StudentDashboard = () => {
       const csrfToken = getCSRFToken();
       if (!csrfToken) {
         console.log('🔄 Fetching CSRF token...');
-        await axios.get('http://127.0.0.1:8000/api/csrf-token/');
+        await axios.get(`${API_BASE_URL}/api/csrf-token/`);
         console.log('✅ CSRF token fetched');
       } else {
         console.log('✅ CSRF token already available:', csrfToken);
@@ -102,14 +104,14 @@ const StudentDashboard = () => {
 
       // Check authentication status first
       try {
-        const authCheck = await axios.get('http://127.0.0.1:8000/api/debug/auth-status/');
+        const authCheck = await axios.get(`${API_BASE_URL}/api/debug/auth-status/`);
         console.log('🔐 Auth status:', authCheck.data);
       } catch (authError) {
         console.error('❌ Auth check failed:', authError);
       }
 
       // Fetch student data
-      const studentResponse = await axios.get('http://127.0.0.1:8000/api/students/');
+      const studentResponse = await axios.get(`${API_BASE_URL}/api/students/`);
       console.log('📊 All students:', studentResponse.data);
       
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -157,123 +159,124 @@ const StudentDashboard = () => {
   };
 
   // CORRECTED course slip fetching with proper student filtering
-const fetchCurrentCourseSlip = async () => {
-  try {
-    setLoading(true);
+  const fetchCurrentCourseSlip = async () => {
+    try {
+      setLoading(true);
 
-    // Get current user
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    
-    if (!currentUser || !currentUser.id) {
-      console.log('❌ No user found in localStorage');
-      setCourseSlip(null);
-      return;
-    }
-
-    // Get all students to find the current one
-    const studentsResponse = await axios.get('http://127.0.0.1:8000/api/students/');
-    const currentStudent = studentsResponse.data.find(s => {
-      if (s.user && typeof s.user === 'object') {
-        return s.user.id === currentUser.id;
+      // Get current user
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      
+      if (!currentUser || !currentUser.id) {
+        console.log('❌ No user found in localStorage');
+        setCourseSlip(null);
+        return;
       }
-      return false;
-    });
 
-    if (!currentStudent) {
-      console.log('❌ No student record found for user:', currentUser);
-      setCourseSlip(null);
-      return;
-    }
-
-    console.log('🎯 Current student found:', currentStudent);
-
-    // Try endpoints with proper student filtering
-    const endpoints = [
-      `http://127.0.0.1:8000/api/course-slips/?student=${currentStudent.id}`,
-      `http://127.0.0.1:8000/api/course-slips/student/${currentStudent.id}/`,
-      `http://127.0.0.1:8000/api/student/course-slip/?student_id=${currentStudent.id}`,
-      'http://127.0.0.1:8000/api/student/course-slip/',
-    ];
-
-    let courseSlipData = null;
-
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`🔍 Trying endpoint: ${endpoint}`);
-        const response = await axios.get(endpoint);
-        
-        if (response.data) {
-          // Handle array response - filter by current student
-          if (Array.isArray(response.data) && response.data.length > 0) {
-            // Find course slip for current student
-            const studentCourseSlip = response.data.find(slip => {
-              const slipStudentId = typeof slip.student === 'object' ? slip.student.id : slip.student;
-              return slipStudentId == currentStudent.id;
-            });
-            
-            if (studentCourseSlip) {
-              courseSlipData = studentCourseSlip;
-              console.log(`✅ Found course slip for student at: ${endpoint}`);
-              break;
-            }
-          }
-          // Handle single object response - verify it belongs to current student
-          else if (response.data && typeof response.data === 'object') {
-            const slipStudentId = typeof response.data.student === 'object' ? 
-                                 response.data.student.id : response.data.student;
-            
-            if (slipStudentId == currentStudent.id) {
-              courseSlipData = response.data;
-              console.log(`✅ Found course slip object for student at: ${endpoint}`);
-              break;
-            } else {
-              console.log('❌ Course slip belongs to different student:', slipStudentId, 'expected:', currentStudent.id);
-            }
-          }
+      // Get all students to find the current one
+      const studentsResponse = await axios.get(`${API_BASE_URL}/api/students/`);
+      const currentStudent = studentsResponse.data.find(s => {
+        if (s.user && typeof s.user === 'object') {
+          return s.user.id === currentUser.id;
         }
-      } catch (error) {
-        console.log(`❌ Endpoint failed: ${endpoint}`, error.response?.status);
-        continue;
-      }
-    }
+        return false;
+      });
 
-    if (courseSlipData) {
-      // Process the course slip data
-      if (courseSlipData.course_details && courseSlipData.course_details.length > 0) {
-        courseSlipData.courses = courseSlipData.course_details;
+      if (!currentStudent) {
+        console.log('❌ No student record found for user:', currentUser);
+        setCourseSlip(null);
+        return;
       }
-      
-      // Verify the course slip belongs to the correct department
-      const slipDepartment = courseSlipData.department_name || 
-                           (courseSlipData.student && typeof courseSlipData.student === 'object' ? 
-                            courseSlipData.student.department_name : null);
-      
-      const studentDepartment = currentStudent.department_name;
-      
-      if (slipDepartment && studentDepartment && slipDepartment !== studentDepartment) {
-        console.warn('⚠️ Department mismatch:', {
-          slipDepartment,
-          studentDepartment,
-          courseSlipData
-        });
+
+      console.log('🎯 Current student found:', currentStudent);
+
+      // Try endpoints with proper student filtering
+      const endpoints = [
+        `${API_BASE_URL}/api/course-slips/?student=${currentStudent.id}`,
+        `${API_BASE_URL}/api/course-slips/student/${currentStudent.id}/`,
+        `${API_BASE_URL}/api/student/course-slip/?student_id=${currentStudent.id}`,
+        `${API_BASE_URL}/api/student/course-slip/`,
+      ];
+
+      let courseSlipData = null;
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔍 Trying endpoint: ${endpoint}`);
+          const response = await axios.get(endpoint);
+          
+          if (response.data) {
+            // Handle array response - filter by current student
+            if (Array.isArray(response.data) && response.data.length > 0) {
+              // Find course slip for current student
+              const studentCourseSlip = response.data.find(slip => {
+                const slipStudentId = typeof slip.student === 'object' ? slip.student.id : slip.student;
+                return slipStudentId == currentStudent.id;
+              });
+              
+              if (studentCourseSlip) {
+                courseSlipData = studentCourseSlip;
+                console.log(`✅ Found course slip for student at: ${endpoint}`);
+                break;
+              }
+            }
+            // Handle single object response - verify it belongs to current student
+            else if (response.data && typeof response.data === 'object') {
+              const slipStudentId = typeof response.data.student === 'object' ? 
+                                  response.data.student.id : response.data.student;
+              
+              if (slipStudentId == currentStudent.id) {
+                courseSlipData = response.data;
+                console.log(`✅ Found course slip object for student at: ${endpoint}`);
+                break;
+              } else {
+                console.log('❌ Course slip belongs to different student:', slipStudentId, 'expected:', currentStudent.id);
+              }
+            }
+          }
+        } catch (error) {
+          console.log(`❌ Endpoint failed: ${endpoint}`, error.response?.status);
+          continue;
+        }
       }
-      
-      setCourseSlip(courseSlipData);
-    } else {
-      console.log('❌ No course slip data found for current student');
+
+      if (courseSlipData) {
+        // Process the course slip data
+        if (courseSlipData.course_details && courseSlipData.course_details.length > 0) {
+          courseSlipData.courses = courseSlipData.course_details;
+        }
+        
+        // Verify the course slip belongs to the correct department
+        const slipDepartment = courseSlipData.department_name || 
+                             (courseSlipData.student && typeof courseSlipData.student === 'object' ? 
+                              courseSlipData.student.department_name : null);
+        
+        const studentDepartment = currentStudent.department_name;
+        
+        if (slipDepartment && studentDepartment && slipDepartment !== studentDepartment) {
+          console.warn('⚠️ Department mismatch:', {
+            slipDepartment,
+            studentDepartment,
+            courseSlipData
+          });
+        }
+        
+        setCourseSlip(courseSlipData);
+      } else {
+        console.log('❌ No course slip data found for current student');
+        setCourseSlip(null);
+      }
+
+    } catch (error) {
+      console.error('Error fetching course slip:', error);
       setCourseSlip(null);
+    } finally {
+      setLoading(false);
     }
+  };
 
-  } catch (error) {
-    console.error('Error fetching course slip:', error);
-    setCourseSlip(null);
-  } finally {
-    setLoading(false);
-  }
-};
   const fetchStudentGrades = async (studentId) => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/grades/');
+      const response = await axios.get(`${API_BASE_URL}/api/grades/`);
       const studentGrades = response.data.filter(grade => {
         const gradeStudentId = typeof grade.student === 'object' ? grade.student.id : grade.student;
         return gradeStudentId == studentId;
@@ -289,7 +292,7 @@ const fetchCurrentCourseSlip = async () => {
 
   const fetchStudentRegistrations = async (studentId) => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/registrations/');
+      const response = await axios.get(`${API_BASE_URL}/api/registrations/`);
       const studentRegistrations = response.data.filter(reg => {
         const regStudentId = typeof reg.student === 'object' ? reg.student.id : reg.student;
         return regStudentId == studentId;
@@ -431,7 +434,8 @@ const fetchCurrentCourseSlip = async () => {
       setLoading(false);
     }
   };
-   useEffect(() => {
+
+  useEffect(() => {
     const checkLoginStatus = () => {
       const user = localStorage.getItem('user');
       if (!user) {
@@ -458,28 +462,29 @@ const fetchCurrentCourseSlip = async () => {
     // Retry fetching data
     await fetchStudentData();
   };
-// Add this function to test authentication
-const testAuthentication = async () => {
-  try {
-    console.log('🔐 Testing authentication...');
-    
-    // First get CSRF token
-    await axios.get('http://127.0.0.1:8000/api/csrf-token/', {
-      withCredentials: true
-    });
-    
-    // Then test auth status
-    const authResponse = await axios.get('http://127.0.0.1:8000/api/debug/auth-status/', {
-      withCredentials: true
-    });
-    
-    console.log('🔐 Auth status test:', authResponse.data);
-    return authResponse.data;
-  } catch (error) {
-    console.error('❌ Auth test failed:', error);
-    return null;
-  }
-};
+
+  // Add this function to test authentication
+  const testAuthentication = async () => {
+    try {
+      console.log('🔐 Testing authentication...');
+      
+      // First get CSRF token
+      await axios.get(`${API_BASE_URL}/api/csrf-token/`, {
+        withCredentials: true
+      });
+      
+      // Then test auth status
+      const authResponse = await axios.get(`${API_BASE_URL}/api/debug/auth-status/`, {
+        withCredentials: true
+      });
+      
+      console.log('🔐 Auth status test:', authResponse.data);
+      return authResponse.data;
+    } catch (error) {
+      console.error('❌ Auth test failed:', error);
+      return null;
+    }
+  };
 
 // Call this in your useEffect or when component mounts
 useEffect(() => {
