@@ -239,8 +239,7 @@ const createBasicRegistration = async (studentId) => {
     console.log('📤 Sending registration data:', formData);
     
     // Step 1: Register student (create user account)
-    const studentResponse = await axios.post(`${API_BASE_URL}/api/register_student/`, formData);
-    console.log('✅ Student registration success:', studentResponse.data);
+const studentResponse = await axios.post(`${API_BASE_URL}/api/register-student/`, formData);    console.log('✅ Student registration success:', studentResponse.data);
     
     // Step 2: Create basic registration record (without courses)
     const studentId = studentResponse.data.id;
