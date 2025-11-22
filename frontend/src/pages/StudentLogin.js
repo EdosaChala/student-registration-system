@@ -4,6 +4,7 @@ import axios from 'axios';
 import '../styles/Auth.css';
 
 const StudentLogin = () => {
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8000';
   const [formData, setFormData] = useState({ username: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -22,7 +23,7 @@ const StudentLogin = () => {
     setMessage('');
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/login/', formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/login/`, formData, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -102,7 +103,7 @@ const StudentLogin = () => {
   // After successful login, check if session cookie is set
 const checkSession = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/debug/auth-status/', {
+    const response = await axios.get(`${API_BASE_URL}/api/debug/auth-status/`, {
       withCredentials: true,
     });
     console.log('Session check after login:', response.data);
