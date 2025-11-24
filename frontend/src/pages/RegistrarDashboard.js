@@ -63,7 +63,8 @@ const RegistrarDashboard = () => {
   const [activeTab, setActiveTab] = useState('assign');
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(false);
-  
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8000';
+
   // State for admin assignment
   const [selectedStudent, setSelectedStudent] = useState('');
   const [selectedCourses, setSelectedCourses] = useState([]);
@@ -223,21 +224,20 @@ const RegistrarDashboard = () => {
     setLoading(true);
     try {
       const [
-        regResponse, 
-        yearsResponse, 
-        studentsResponse, 
-        coursesResponse, 
-        semestersResponse,
-        gradesResponse
-      ] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/registrations/'),
-        axios.get('http://127.0.0.1:8000/api/academic-years/'),
-        axios.get('http://127.0.0.1:8000/api/students/'),
-        axios.get('http://127.0.0.1:8000/api/courses/'),
-        axios.get('http://127.0.0.1:8000/api/semesters/'),
-        axios.get('http://127.0.0.1:8000/api/grades/')
-      ]);
-
+  regResponse, 
+  yearsResponse, 
+  studentsResponse, 
+  coursesResponse, 
+  semestersResponse,
+  gradesResponse
+] = await Promise.all([
+  axios.get(`${API_BASE_URL}/api/registrations/`),
+  axios.get(`${API_BASE_URL}/api/academic-years/`),
+  axios.get(`${API_BASE_URL}/api/students/`),
+  axios.get(`${API_BASE_URL}/api/courses/`),
+  axios.get(`${API_BASE_URL}/api/semesters/`),
+  axios.get(`${API_BASE_URL}/api/grades/`)
+]);
       // Set basic data first
       setRegistrations(regResponse.data || []);
       setAcademicYears(yearsResponse.data || []);
@@ -252,7 +252,7 @@ const RegistrarDashboard = () => {
       // Then fetch course slips after basic data is set
       let courseSlipsData = [];
       try {
-        const courseSlipsResponse = await axios.get('http://127.0.0.1:8000/api/course-slips/');
+     const courseSlipsResponse = await axios.get(`${API_BASE_URL}/api/course-slips/`);
         console.log('✅ CourseSlipViewSet raw response:', courseSlipsResponse.data);
         
         // Handle different response formats
@@ -769,7 +769,7 @@ const RegistrarDashboard = () => {
   const approveCourseSlip = async (courseSlipId) => {
     setLoading(true);
     try {
-      const response = await axios.post(`http://127.0.0.1:8000/api/course-slips/${courseSlipId}/approve/`);
+const response = await axios.post(`${API_BASE_URL}/api/course-slips/${courseSlipId}/approve/`);
       
       if (response.data.success) {
         alert('Course slip approved successfully!');
@@ -1004,8 +1004,8 @@ const assignCoursesToStudent = async () => {
     // Ensure authentication
     await ensureAuthenticated();
 
-    const response = await axios.post(
-      'http://127.0.0.1:8000/api/create-student-course-slip/',
+   const response = await axios.post(
+  `${API_BASE_URL}/api/create-student-course-slip/`,
       {
         student_id: selectedStudent,
         course_ids: selectedCourses,
@@ -1079,7 +1079,7 @@ const assignCoursesToStudent = async () => {
   const approveRegistration = async (registrationId) => {
     setLoading(true);
     try {
-      const response = await axios.post(`http://127.0.0.1:8000/api/registrations/${registrationId}/approve_registration/`);
+const response = await axios.post(`${API_BASE_URL}/api/registrations/${registrationId}/approve_registration/`);
       
       if (response.data.success) {
         alert('Registration approved successfully!');
@@ -1340,7 +1340,7 @@ const getFilteredStudentsForAutoAssignment = (semesterId, departmentFilter = '')
 const checkLoginStatus = async () => {
   try {
     // Try to access an endpoint that exists and requires authentication
-    const response = await axios.get('http://127.0.0.1:8000/api/course-slips/');
+     const response = await axios.get(`${API_BASE_URL}/api/course-slips/`);
     console.log('✅ User is authenticated and can access protected endpoints');
     return true;
   } catch (error) {
@@ -1435,7 +1435,7 @@ const applyAutoAssignment = async () => {
         console.log('🔐 Using CSRF token for POST:', csrfToken ? 'Yes' : 'No');
         
         const response = await axios.post(
-          'http://127.0.0.1:8000/api/create-student-course-slip/',
+    `${API_BASE_URL}/api/create-student-course-slip/`,
           {
             student_id: student.id,
             semester_id: autoAssignment.selectedSemester,

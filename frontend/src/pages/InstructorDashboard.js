@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/InstructorDashboard.css';
-
+// Configure axios for CSRF
+axios.defaults.xsrfCookieName = 'csrftoken';
+axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+axios.defaults.withCredentials = true;
 const InstructorDashboard = () => {
   const [activeTab, setActiveTab] = useState('courses');
   const [courses, setCourses] = useState([]);
@@ -16,8 +19,7 @@ const InstructorDashboard = () => {
   const [semesters, setSemesters] = useState([]);
 
   const navigate = useNavigate();
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
-
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8000';
   // Grade configuration
   const gradeOptions = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D', 'F', 'I'];
   
