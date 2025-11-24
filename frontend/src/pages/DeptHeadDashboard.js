@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/DeptHeadDashboard.css';
-
+// Configure axios for CSRF
+axios.defaults.xsrfCookieName = 'csrftoken';
+axios.defaults.xsrfHeaderName = 'X-CSRFToken';
+axios.defaults.withCredentials = true;
 const DeptHeadDashboard = () => {
   const [department, setDepartment] = useState(null);
   const [students, setStudents] = useState([]);
@@ -10,7 +13,7 @@ const DeptHeadDashboard = () => {
   const [grades, setGrades] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-  
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8000';
   // Global filter states for year and semester
   const [globalFilters, setGlobalFilters] = useState({
     year: '',
@@ -66,7 +69,7 @@ const DeptHeadDashboard = () => {
       console.log('👤 Current user:', userData);
 
       // Get user roles to find department head's department
-      const userRoleResponse = await axios.get('http://127.0.0.1:8000/api/user-roles/');
+     const userRoleResponse = await axios.get(`${API_BASE_URL}/api/user-roles/`);
       console.log('🎭 All user roles:', userRoleResponse.data);
       
       // Find the current user's role
@@ -85,13 +88,13 @@ const DeptHeadDashboard = () => {
         setDepartment(userRole.department);
         
         // Fetch all data using your existing endpoints
-        const [studentsResponse, coursesResponse, gradesResponse, allInstructorsResponse, programsResponse] = await Promise.all([
-          axios.get('http://127.0.0.1:8000/api/students/'),
-          axios.get('http://127.0.0.1:8000/api/courses/'),
-          axios.get('http://127.0.0.1:8000/api/grades/'),
-          axios.get('http://127.0.0.1:8000/api/user-roles/'),
-          axios.get('http://127.0.0.1:8000/api/academic-programs/')
-        ]);
+       const [studentsResponse, coursesResponse, gradesResponse, allInstructorsResponse, programsResponse] = await Promise.all([
+  axios.get(`${API_BASE_URL}/api/students/`),
+  axios.get(`${API_BASE_URL}/api/courses/`),
+  axios.get(`${API_BASE_URL}/api/grades/`),
+  axios.get(`${API_BASE_URL}/api/user-roles/`),
+  axios.get(`${API_BASE_URL}/api/academic-programs/`)
+]);
 
         console.log('📊 Raw data:', {
           students: studentsResponse.data?.length,
