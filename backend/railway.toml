@@ -1,0 +1,11 @@
+[build] 
+builder = "NIXPACKS" 
+ 
+[deploy] 
+numReplicas = 1 
+restartPolicyType = "ON_FAILURE" 
+ 
+[variables] 
+DEBUG = "false" 
+IS_PRODUCTION = "true" 
+RAILWAY_ENVIRONMENT = "true" 
