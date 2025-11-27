@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from decouple import config
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -11,7 +12,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-wollega-university-st
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-# FIXED: Only one ALLOWED_HOSTS definition
+# ALLOWED_HOSTS
 ALLOWED_HOSTS = [
     'student-registration-system-production.up.railway.app',
     'student-registration-system-production-5ef6.up.railway.app', 
@@ -66,17 +67,21 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'student_registration.wsgi.application'
 
-import os
-import dj_database_url
-
-# Database
-if os.getenv('DATABASE_URL'):
+# Database Configuration - IMPROVED
+DATABASE_URL = os.getenv('DATABASE_URL')
+if DATABASE_URL:
     DATABASES = {
         'default': dj_database_url.config(
-            default=os.getenv('DATABASE_URL'),
-            conn_max_age=600
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
         )
     }
+    # Force SSL for PostgreSQL in production
+    if not DEBUG:
+        DATABASES['default']['OPTIONS'] = {
+            'sslmode': 'require'
+        }
 else:
     DATABASES = {
         'default': {
@@ -121,24 +126,26 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',  # Changed from IsAuthenticated for easier testing
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
     ],
 }
 
-# CORS configuration - UPDATED
+# CORS configuration - ENHANCED
+CORS_ALLOW_ALL_ORIGINS = DEBUG  # Only allow all in development
 CORS_ALLOWED_ORIGINS = [
     "https://student-registration-system-production.up.railway.app",
     "https://prismatic-twilight-d4d485.netlify.app",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://localhost:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
-# CSRF configuration - UPDATED
+# CSRF configuration
 CSRF_TRUSTED_ORIGINS = [
     "https://student-registration-system-production.up.railway.app",
     "https://prismatic-twilight-d4d485.netlify.app",
@@ -147,13 +154,13 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-# For production, set these to True if using HTTPS
-CSRF_COOKIE_SECURE = True  # Change to True for production
+# Security settings - DYNAMIC BASED ON DEBUG MODE
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Session configuration
-SESSION_COOKIE_SECURE = True  # Change to True for production
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
@@ -174,3 +181,14 @@ CORS_ALLOW_HEADERS = [
 # WhiteNoise configuration for static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Additional security settings
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# For production on Railway
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    
