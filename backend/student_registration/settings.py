@@ -1,17 +1,15 @@
 import os
 from pathlib import Path
-from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-wollega-university-student-registration-system-2024')
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-wollega-university-student-registration-system-2024')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-# FIXED: Only one ALLOWED_HOSTS definition
 ALLOWED_HOSTS = [
     'student-registration-system-production.up.railway.app',
     'student-registration-system-production-5ef6.up.railway.app', 
@@ -73,6 +71,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -109,14 +108,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
     ],
 }
 
-# CORS configuration - UPDATED
+# CORS configuration
 CORS_ALLOWED_ORIGINS = [
     "https://student-registration-system-production.up.railway.app",
     "https://prismatic-twilight-d4d485.netlify.app",
@@ -126,7 +125,7 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# CSRF configuration - UPDATED
+# CSRF configuration
 CSRF_TRUSTED_ORIGINS = [
     "https://student-registration-system-production.up.railway.app",
     "https://prismatic-twilight-d4d485.netlify.app",
@@ -135,13 +134,13 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-# For production, set these to True if using HTTPS
-CSRF_COOKIE_SECURE = True  # Change to True for production
+# Security settings - FIXED for production
+CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 
 # Session configuration
-SESSION_COOKIE_SECURE = True  # Change to True for production
+SESSION_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
@@ -161,4 +160,3 @@ CORS_ALLOW_HEADERS = [
 
 # WhiteNoise configuration for static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
